@@ -1,23 +1,24 @@
 ﻿using System.Collections;
 using UnityEngine.UI;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public class GamePlayManager : MonoBehaviour
 {
     [SerializeField] GameObject buttonPrefab;
     [SerializeField] int noOfButtons;
     [SerializeField] GameObject[] allButtons;
+    [SerializeField] Sprite[] images;
+    [SerializeField] Text message;
+    [SerializeField] GameObject RestartButton;
     int playerChances = 0;
     // Start is called before the first frame update
     void Start()
     {
         if(noOfButtons>0)
             ButtonSetUp();
-    }
-    // Update is called once per frame
-    void Update()
-    {
-
+        RestartButton.GetComponent<Button>().onClick.AddListener(() => RestartGame());
+        RestartButton.SetActive(false);
     }
 
     private void ButtonSetUp()
@@ -30,47 +31,63 @@ public class GamePlayManager : MonoBehaviour
         foreach (GameObject button in allButtons)
         {
             button.transform.SetParent(gameObject.transform);
-            button.transform.GetChild(0).GetComponent<Text>().text = "";
+            button.name = "empty";
             button.GetComponent<Button>().onClick.AddListener(() => ButtonClicked(button));
         }
+        message.text = "X chance";
     }
+
+    
 
     private void ButtonClicked(GameObject button)
     {
-        Debug.Log("Button Clicked",gameObject);
-        button.transform.GetChild(0).GetComponent<Text>().text = "X";
-        button.GetComponent<Button>().onClick.RemoveListener(() => ButtonClicked(button));
-        button.GetComponent<Button>().interactable = false;
+        Debug.Log("Button Clicked", gameObject);
+        ChangeButtonTo(button,"X",images[0]);
         playerChances++;
         bool botShouldPlay = true;
         if (playerChances >= 3)
-           botShouldPlay = CheckWin("X");
-        if(botShouldPlay && playerChances<5)
+            botShouldPlay = CheckPlayerWin("X");
+        if (botShouldPlay && playerChances < 5)
             StartCoroutine(BotChance());
+        if (playerChances == 5)
+            message.text = "Game Draw";
+    }
+
+    private void ChangeButtonTo(GameObject button,string player,Sprite sprite)
+    {
+        Image buttonImage = button.GetComponent<Image>();
+        buttonImage.sprite = sprite;
+        buttonImage.color = Color.white;
+        button.name = player;
+        button.GetComponent<Button>().onClick.RemoveListener(() => ButtonClicked(button));
+        button.GetComponent<Button>().interactable = false;
     }
 
     IEnumerator BotChance()
     {
-        yield return new WaitForSeconds(2f);
+        message.text = "O chance";
+        yield return new WaitForSeconds(0.5f);
         int buttonToChoose;
         do
         {
             buttonToChoose = UnityEngine.Random.Range(0, allButtons.Length);
-        } while (allButtons[buttonToChoose].transform.GetChild(0).GetComponent<Text>().text != "");
-        allButtons[buttonToChoose].transform.GetChild(0).GetComponent<Text>().text = "O";
-        allButtons[buttonToChoose].GetComponent<Button>().interactable = false;
+        } while (allButtons[buttonToChoose].name != "empty");
+
+        ChangeButtonTo(allButtons[buttonToChoose],"O",images[1]);
         bool playerShouldPlay = true;
         if (playerChances >= 3)
-            playerShouldPlay = CheckWin("O");
+            playerShouldPlay = CheckPlayerWin("O");
+        if(playerShouldPlay)
+            message.text = "X chance";
     }
 
-    private bool CheckWin(string player)
+    private bool CheckPlayerWin(string player)
     {
         GameObject[] playerBoxes = new GameObject[playerChances];
         int noOfplayer = 0;
         for (int l = 0; l < allButtons.Length; l++)
         {
-            if (allButtons[l].transform.GetChild(0).GetComponent<Text>().text == player)
+            if (allButtons[l].name == player)
             {
                 playerBoxes[noOfplayer] = allButtons[l];
                 noOfplayer++;
@@ -87,14 +104,14 @@ public class GamePlayManager : MonoBehaviour
                         if (playerBoxes[i].transform.position.x == playerBoxes[j].transform.position.x &&
                             playerBoxes[j].transform.position.x == playerBoxes[k].transform.position.x)
                         {
-                            Debug.Log(player + " win");
+                            GameOver(player);
                             return false;
                         }
                         //Horizontal Match
                         if (playerBoxes[i].transform.position.y == playerBoxes[j].transform.position.y &&
                             playerBoxes[j].transform.position.y == playerBoxes[k].transform.position.y)
                         {
-                            Debug.Log(player + " wins");
+                            GameOver(player);
                             return false;
                         }
                         //Diagonal Match
@@ -102,14 +119,28 @@ public class GamePlayManager : MonoBehaviour
                         float dif2 = playerBoxes[j].transform.position.x - playerBoxes[k].transform.position.x;
                         float dif3 = playerBoxes[i].transform.position.y - playerBoxes[j].transform.position.y;
                         float dif4 = playerBoxes[j].transform.position.y - playerBoxes[k].transform.position.y;
-                        Debug.Log(dif1+","+dif2 + "," + dif3 + "," + dif4);
+                        //Debug.Log(dif1+","+dif2 + "," + dif3 + "," + dif4);
                         if (dif1 == dif2 && dif3 == dif4)
-                        { 
-                            Debug.Log(player + " wins");
+                        {
+                            GameOver(player);
                             return false;
                         }
                     }
         }
         return true;
+    }
+
+    void GameOver(string player)
+    {
+        Debug.Log(player + " wins");
+        message.text = player + " wins";
+        foreach(GameObject button in allButtons)
+            button.GetComponent<Button>().interactable = false;
+        RestartButton.SetActive(true);
+    }
+
+    void RestartGame()
+    {
+        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
     }
 }
